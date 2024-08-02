@@ -5,7 +5,7 @@ Streamlit component that allows you to do X
 ## Installation instructions
 
 ```sh
-pip install streamlit-custom-component
+pip install streamlit-blockly
 ```
 
 ## Usage instructions
@@ -13,9 +13,9 @@ pip install streamlit-custom-component
 ```python
 import streamlit as st
 
-from my_component import my_component
+import streamlit_blockly as st_blockly
 
-value = my_component()
+value = st_blockly.workspace()
 
 st.write(value)
 ```

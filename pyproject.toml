@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "streamlit-blockly"
+version = "0.1.0"
+description = ""
+authors = ["ohtaman <ohtamans@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+streamlit = "^1.37.0"
+
+
+[tool.poetry.group.dev.dependencies]
+wheel = "^0.43.0"
+pytest = "^8.3.2"
+playwright = "^1.45.1"
+requests = "^2.32.3"
+pytest-playwright-snapshot = "^1.0"
+pytest-rerunfailures = "^14.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
