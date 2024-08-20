@@ -1,22 +1,11 @@
+"""__init__.py"""
+
 import os
+from typing import Any, Dict, List, Optional
+
 import streamlit.components.v1 as components
 
-# Create a _RELEASE constant. We'll set this to False while we're developing
-# the component, and True when we're ready to package and distribute it.
-# (This is, of course, optional - there are innumerable ways to manage your
-# release process.)
 _RELEASE = False
-
-# Declare a Streamlit component. `declare_component` returns a function
-# that is used to create instances of the component. We're naming this
-# function "_component_func", with an underscore prefix, because we don't want
-# to expose it directly to users. Instead, we will create a custom wrapper
-# function, below, that will serve as our component's public API.
-
-# It's worth noting that this call to `declare_component` is the
-# *only thing* you need to do to create the binding between Streamlit and
-# your component frontend. Everything else we do in this file is simply a
-# best practice.
 
 if not _RELEASE:
     _component_func = components.declare_component(
@@ -24,40 +13,77 @@ if not _RELEASE:
         url="http://localhost:3001",
     )
 else:
-    # When we're distributing a production version of the component, we'll
-    # replace the `url` param with `path`, and point it to the component's
-    # build directory:
     parent_dir = os.path.dirname(os.path.abspath(__file__))
     build_dir = os.path.join(parent_dir, "frontend/build")
-    _component_func = components.declare_component(
-        "blockly_workspace", path=build_dir)
+    _component_func = components.declare_component("blockly_workspace", path=build_dir)
 
 
-# Create a wrapper function for the component. This is an optional
-# best practice - we could simply expose the component function returned by
-# `declare_component` and call it done. The wrapper allows us to customize
-# our component's API: we can pre-process its input args, post-process its
-# output value, and add a docstring for users.
-def workspace(name, key=None):
-    """Create a new instance of "blockly_workspace".
+def workspace(
+    name: str,
+    key: Optional[str] = None,
+    locale: str = "en",
+    toolbox: Optional[Dict[str, Any]] = None,
+    custom_blocks: Optional[List[Dict[str, Any]]] = None,
+    workspace: Optional[Dict[str, Any]] = None,
+    height: int = 480,
+    trashcan: bool = True,
+    zoom: Optional[Dict[str, Any]] = None,
+    sound: bool = True,
+) -> Any:
+    """Create a new instance of the Blockly workspace component.
 
     Parameters
     ----------
     name: str
-        The name of the thing we're saying hello to. The component will display
-        the text "Hello, {name}!"
-    key: str or None
-        An optional key that uniquely identifies this component. If this is
-        None, and the component's arguments are changed, the component will
-        be re-mounted in the Streamlit frontend and lose its current state.
+        The name of the Blockly workspace instance.
+    key: Optional[str], optional
+        An optional key that uniquely identifies this component.
+    locale: str, optional
+        The locale to use for Blockly messages (default is "en").
+    toolbox: Optional[Dict], optional
+        A dictionary defining the toolbox configuration for the Blockly workspace.
+    custom_blocks: Optional[List], optional
+        A list of custom block definitions to be added to the Blockly workspace.
+    workspace: Optional[Dict], optional
+        A dictionary representing the initial state of the Blockly workspace.
+    height: int, optional
+        The height of the Blockly workspace in pixels (default is 480).
+    trashcan: bool, optional
+        Whether to show the trashcan in the Blockly workspace (default is True).
+    zoom: Optional[Dict], optional
+        A dictionary defining zoom controls and settings for the Blockly workspace.
+        If not provided, a default zoom configuration will be used.
+    sound: bool, optional
+        Whether to enable sound effects in the Blockly workspace (default is True).
 
-    Returns
+    Returns:
     -------
-    int
-        The number of times the component's "Click Me" button has been clicked.
-        (This is the value passed to `Streamlit.setComponentValue` on the
-        frontend.)
-
+    Dict
+        The current state of the Blockly workspace as a dictionary.
     """
-    component_value = _component_func(name=name, key=key, default=0)
+    # デフォルトのズーム設定
+    default_zoom = {
+        "controls": True,
+        "wheel": True,
+        "startScale": 1.0,
+        "maxScale": 3,
+        "minScale": 0.3,
+        "scaleSpeed": 1.2,
+    }
+
+    # ズーム設定のデフォルトを適用
+    zoom = zoom or default_zoom
+
+    component_value = _component_func(
+        name=name,
+        key=key,
+        locale=locale,
+        toolbox=toolbox,
+        custom_blocks=custom_blocks,
+        workspace=workspace,
+        height=height,
+        trashcan=trashcan,
+        zoom=zoom,
+        sound=sound,
+    )
     return component_value

@@ -1,10 +1,11 @@
 import React from "react"
 import ReactDOM from "react-dom"
-import MyComponent from "./MyComponent"
+import BlocklyComponent from "./BlocklyComponent"
+
 
 ReactDOM.render(
   <React.StrictMode>
-    <MyComponent />
+    <BlocklyComponent />
   </React.StrictMode>,
   document.getElementById("root")
 )

@@ -1,28 +1,214 @@
+"""example"""
+
+import random
+from typing import Any, Dict
+
 import streamlit as st
-from streamlit_blockly import workspace
 
-# Add some test code to play with the component while it's in development.
-# During development, we can run this just as we would any other Streamlit
-# app: `$ streamlit run my_component/example.py`
+import streamlit_blockly as st_blockly
 
-st.subheader("Component with constant args")
+# ツールボックスの定義
+toolbox = {
+    "kind": "categoryToolbox",
+    "contents": [
+        {
+            "kind": "category",
+            "name": "Logic",
+            "contents": [
+                {"kind": "block", "type": "controls_if"},
+                {"kind": "block", "type": "logic_compare"},
+            ],
+        },
+        {
+            "kind": "category",
+            "name": "Loops",
+            "contents": [
+                {"kind": "block", "type": "controls_repeat_ext"},
+                {"kind": "block", "type": "controls_whileUntil"},
+            ],
+        },
+        {
+            "kind": "category",
+            "name": "Math",
+            "contents": [
+                {"kind": "block", "type": "math_number"},
+                {"kind": "block", "type": "math_arithmetic"},
+            ],
+        },
+        {
+            "kind": "category",
+            "name": "Custom",
+            "contents": [
+                {
+                    "kind": "block",
+                    "type": "print",
+                },  # カスタムブロックをツールボックスに追加
+            ],
+        },
+    ],
+}
 
-# Create an instance of our component with a constant `name` arg, and
-# print its output value.
-num_clicks = workspace("World")
-st.markdown("You've clicked %s times!" % int(num_clicks))
+# カスタムブロックの定義
+custom_blocks = [
+    {
+        "type": "print",
+        "message0": "print %1",
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "TEXT",
+            },
+        ],
+        "previousStatement": None,
+        "nextStatement": None,
+        "colour": 160,
+        "tooltip": "",
+        "helpUrl": "",
+    },
+]
 
-st.markdown("---")
-st.subheader("Component with variable args")
+initial_workspace_state = {
+    "blocks": {
+        "languageVersion": 0,
+        "blocks": [
+            {
+                "type": "controls_if",
+                "id": "ifBlock",
+                "x": 50,
+                "y": 50,
+                "inputs": {
+                    "IF0": {
+                        "block": {
+                            "type": "logic_compare",
+                            "id": "compareBlock",
+                            "fields": {
+                                "OP": "EQ"  # '==' comparison
+                            },
+                            "inputs": {
+                                "A": {
+                                    "block": {
+                                        "type": "math_number",
+                                        "id": "numBlockA",
+                                        "fields": {"NUM": 10},
+                                    }
+                                },
+                                "B": {
+                                    "block": {
+                                        "type": "math_number",
+                                        "id": "numBlockB",
+                                        "fields": {"NUM": 20},
+                                    }
+                                },
+                            },
+                        }
+                    },
+                    "DO0": {
+                        "block": {
+                            "type": "text_print",
+                            "id": "printBlock",
+                            "inputs": {
+                                "TEXT": {
+                                    "block": {
+                                        "type": "text",
+                                        "id": "textBlock",
+                                        "fields": {"TEXT": "Hello World"},
+                                    }
+                                }
+                            },
+                        }
+                    },
+                },
+            }
+        ],
+    }
+}
 
-# Create a second instance of our component whose `name` arg will vary
-# based on a text_input widget.
-#
-# We use the special "key" argument to assign a fixed identity to this
-# component instance. By default, when a component's arguments change,
-# it is considered a new instance and will be re-mounted on the frontend
-# and lose its current state. In this case, we want to vary the component's
-# "name" argument without having it get recreated.
-name_input = st.text_input("Enter a name", value="Streamlit")
-num_clicks = workspace(name_input, key="foo")
-st.markdown("You've clicked %s times!" % int(num_clicks))
+
+# Streamlit UI
+st.title("Streamlit Blockly Workspace Example")
+
+if "blockly_json" not in st.session_state:
+    st.session_state.blockly_json = initial_workspace_state
+
+if "blocky_key" not in st.session_state:
+    st.session_state.blockly_key = None
+
+if st.button("load state"):
+    st.session_state.blockly_key = random.random()
+
+# Blocklyコンポーネントを埋め込む
+blockly_json = st_blockly.workspace(
+    "blockly",
+    locale="en",
+    toolbox=toolbox,
+    custom_blocks=custom_blocks,
+    workspace=st.session_state.blockly_json,
+    key=st.session_state.blockly_key,
+)
+
+if st.button("save state"):
+    st.session_state.blockly_json = blockly_json
+
+
+# 受け取ったJSONを表示
+if blockly_json:
+    st.write("Blockly workspace JSON:")
+    st.json(blockly_json)
+
+    def parse_block(block: Dict[str, Any]) -> str:
+        """Recursively parse a block and generate Python code."""
+        block_type = block.get("type")
+
+        if block_type == "controls_if":
+            do_block = parse_block(block["inputs"]["DO0"]["block"])
+            if_block = parse_block(block["inputs"]["IF0"]["block"]) if "IF0" in block["inputs"] else "True"
+            return f"if {if_block}:\n    {do_block}"
+
+        elif block_type == "logic_compare":
+            a = parse_block(block["inputs"]["A"]["block"])
+            b = parse_block(block["inputs"]["B"]["block"])
+            operator = block["fields"]["OP"]
+            operator_map = {
+                "EQ": "==",
+                "NEQ": "!=",
+                "LT": "<",
+                "LTE": "<=",
+                "GT": ">",
+                "GTE": ">=",
+            }
+            return f"{a} {operator_map.get(operator, '==')} {b}"
+
+        elif block_type == "math_number":
+            return str(block["fields"]["NUM"])
+
+        elif block_type == "print":
+            text = parse_block(block["inputs"]["TEXT"]["block"])
+            return f"print({text})"
+
+        elif block_type == "controls_repeat_ext":
+            times = parse_block(block["inputs"]["TIMES"]["block"])
+            do_block = parse_block(block["inputs"]["DO"]["block"])
+            return f"for _ in range({times}):\n    {do_block}"
+
+        elif block_type == "text":
+            return f"'{block['fields']['TEXT']}'"
+
+        else:
+            return ""
+
+    def generate_python_code(blockly_json: Dict[str, Any]) -> str:
+        """Generate Python code from Blockly JSON."""
+        blocks = blockly_json.get("blocks", {}).get("blocks", [])
+        code_lines = []
+        for block in blocks:
+            code = parse_block(block)
+            while "next" in block:
+                block = block["next"]["block"]
+                code += f"\n{parse_block(block)}"
+            code_lines.append(code)
+        return "\n".join(code_lines)
+
+    # Generate Python code from the Blockly JSON
+    python_code = generate_python_code(blockly_json)
+    st.write("Generated Python code:")
+    st.code(python_code)

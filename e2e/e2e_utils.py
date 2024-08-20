@@ -6,29 +6,34 @@ import socket
 import subprocess
 import sys
 import time
-import typing
 from contextlib import closing
 from tempfile import TemporaryFile
+from typing import Optional, List, Dict, TextIO, Union
+from types import TracebackType
 
 import requests
-
 
 LOGGER = logging.getLogger(__file__)
 
 
-def _find_free_port():
+def _find_free_port() -> int:
     """Find and return a free port on the local machine."""
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.bind(("", 0))  # 0 means that the OS chooses a random port
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        return int(s.getsockname()[1])  # [1] contains the randomly selected port number
+        # [1] contains the randomly selected port number
+        return int(s.getsockname()[1])
 
 
 class AsyncSubprocess:
     """A context manager. Wraps subprocess. Popen to capture output safely."""
 
-    def __init__(self, args: typing.List[str], cwd: typing.Optional[str] = None,
-                 env: typing.Optional[typing.Dict[str, str]] = None):
+    def __init__(
+        self,
+        args: List[str],
+        cwd: Optional[str] = None,
+        env: Optional[Dict[str, str]] = None,
+    ):
         """Initialize an AsyncSubprocess instance.
 
         Args:
@@ -39,10 +44,10 @@ class AsyncSubprocess:
         self.args = args
         self.cwd = cwd
         self.env = env
-        self._proc = None
-        self._stdout_file = None
+        self._proc: Optional[subprocess.Popen[str]] = None
+        self._stdout_file: Optional[TextIO] = None
 
-    def terminate(self) -> typing.Optional[str]:
+    def terminate(self) -> Optional[str]:
         """Terminate the process and return its stdout/stderr in a string."""
         if self._proc is not None:
             self._proc.terminate()
@@ -50,7 +55,7 @@ class AsyncSubprocess:
             self._proc = None
 
         # Read the stdout file and close it
-        stdout = None
+        stdout: Optional[str] = None
         if self._stdout_file is not None:
             self._stdout_file.seek(0)
             stdout = self._stdout_file.read()
@@ -64,15 +69,12 @@ class AsyncSubprocess:
         self.start()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Optional[type], exc_val: Optional[BaseException], exc_tb: Optional[TracebackType]) -> None:
         """Stop the subprocess and close resources when exiting the context."""
         self.stop()
 
-    def start(self):
-        # Start the process and capture its stdout/stderr output to a temp
-        # file. We do this instead of using subprocess.PIPE (which causes the
-        # Popen object to capture the output to its own internal buffer),
-        # because large amounts of output can cause it to deadlock.
+    def start(self) -> None:
+        """Start the subprocess."""
         self._stdout_file = TemporaryFile("w+")
         LOGGER.info("Running command: %s", shlex.join(self.args))
         self._proc = subprocess.Popen(
@@ -84,7 +86,7 @@ class AsyncSubprocess:
             env={**os.environ.copy(), **self.env} if self.env else None,
         )
 
-    def stop(self):
+    def stop(self) -> None:
         """Terminate the subprocess and close resources."""
         if self._proc is not None:
             self._proc.terminate()
@@ -97,16 +99,14 @@ class AsyncSubprocess:
 class StreamlitRunner:
     """A context manager for running Streamlit scripts."""
 
-    def __init__(
-            self, script_path: os.PathLike, server_port: typing.Optional[int] = None
-    ):
+    def __init__(self, script_path: Union[str, os.PathLike[str]], server_port: Optional[int] = None):
         """Initialize a StreamlitRunner instance.
 
         Args:
             script_path (os.PathLike): Path to the Streamlit script to run.
             server_port (int, optional): Port for the Streamlit server. Defaults to None.
         """
-        self._process = None
+        self._process: Optional[AsyncSubprocess] = None
         self.server_port = server_port
         self.script_path = script_path
 
@@ -115,11 +115,11 @@ class StreamlitRunner:
         self.start()
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, type: Optional[type], value: Optional[BaseException], traceback: Optional[TracebackType]) -> None:
         """Stop the Streamlit server and close resources when exiting the context."""
         self.stop()
 
-    def start(self):
+    def start(self) -> None:
         """Start the Streamlit server using the specified script and options."""
         self.server_port = self.server_port or _find_free_port()
         self._process = AsyncSubprocess(
@@ -140,9 +140,10 @@ class StreamlitRunner:
             self._process.stop()
             raise RuntimeError("Application failed to start")
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop the Streamlit server and close resources."""
-        self._process.stop()
+        if self._process:
+            self._process.stop()
 
     def is_server_running(self, timeout: int = 30) -> bool:
         """Check if the Streamlit server is running.
